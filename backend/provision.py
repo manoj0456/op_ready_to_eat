@@ -178,7 +178,10 @@ def ensure_role():
             {
                 "Effect": "Allow",
                 "Action": ["cognito-idp:AdminGetUser", "cognito-idp:InitiateAuth"],
-                "Resource": f"arn:aws:cognito-idp:{REGION}:{ACCOUNT_ID}:userpool/{COGNITO_USER_POOL_ID}",
+                # The pool can live in a different region than this deploy - derive
+                # it from the pool id prefix (e.g. "us-east-2_XXXX") rather than
+                # assuming it matches REGION.
+                "Resource": f"arn:aws:cognito-idp:{COGNITO_USER_POOL_ID.split('_')[0]}:{ACCOUNT_ID}:userpool/{COGNITO_USER_POOL_ID}",
             },
         ],
     }

@@ -8,7 +8,11 @@ import { ApiError, json } from '../response.mjs'
 import { requireAuth } from '../auth.mjs'
 import { toUser } from '../mappers.mjs'
 
-const cognito = new CognitoIdentityProviderClient({})
+// The Cognito user pool may live in a different region than this Lambda -
+// derive it from the pool id prefix (e.g. "us-east-2_XXXX") rather than
+// assuming it matches the Lambda's own region.
+const cognitoRegion = process.env.COGNITO_USER_POOL_ID.split('_')[0]
+const cognito = new CognitoIdentityProviderClient({ region: cognitoRegion })
 
 async function findCognitoSubByEmail(email) {
   try {
