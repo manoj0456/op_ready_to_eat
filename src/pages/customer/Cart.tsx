@@ -28,6 +28,9 @@ export function Cart() {
   const navigate = useNavigate()
 
   const [address, setAddress] = useState({ line1: '', city: '', state: '', zipCode: '' })
+  const [arrivalTime, setArrivalTime] = useState('')
+  const [guestCount, setGuestCount] = useState(2)
+  const [specialInstructions, setSpecialInstructions] = useState('')
 
   const deliveryFee = items.length > 0 ? 4.99 : 0
   const total = subtotal + deliveryFee
@@ -43,6 +46,9 @@ export function Cart() {
           notes: item.notes,
         })),
         deliveryAddress: { ...address, country: 'US' },
+        expectedArrivalTime: new Date(arrivalTime).toISOString(),
+        guestCount,
+        specialInstructions: specialInstructions || undefined,
       })
       clearCart()
       showSnackbar('Order placed!', 'success')
@@ -95,6 +101,37 @@ export function Cart() {
               </Stack>
             </Stack>
           ))}
+        </Stack>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+        <Typography variant="subtitle1" sx={{ mb: 2 }}>
+          Arrival details
+        </Typography>
+        <Stack spacing={2}>
+          <TextField
+            label="Expected arrival time"
+            type="datetime-local"
+            fullWidth
+            slotProps={{ inputLabel: { shrink: true } }}
+            value={arrivalTime}
+            onChange={(e) => setArrivalTime(e.target.value)}
+          />
+          <TextField
+            label="Number of guests"
+            type="number"
+            slotProps={{ htmlInput: { min: 1 } }}
+            value={guestCount}
+            onChange={(e) => setGuestCount(Math.max(1, Number(e.target.value) || 1))}
+          />
+          <TextField
+            label="Special instructions"
+            multiline
+            minRows={2}
+            fullWidth
+            value={specialInstructions}
+            onChange={(e) => setSpecialInstructions(e.target.value)}
+          />
         </Stack>
       </Paper>
 
@@ -153,7 +190,9 @@ export function Cart() {
         size="large"
         fullWidth
         loading={createOrder.isPending}
-        disabled={!address.line1 || !address.city || !address.state || !address.zipCode}
+        disabled={
+          !arrivalTime || !address.line1 || !address.city || !address.state || !address.zipCode
+        }
         onClick={handleCheckout}
       >
         Place order

@@ -6,6 +6,9 @@ export interface CreateOrderPayload {
   restaurantId: string
   items: Pick<OrderItem, 'menuItemId' | 'quantity' | 'notes'>[]
   deliveryAddress: Address
+  expectedArrivalTime: string
+  guestCount: number
+  specialInstructions?: string
 }
 
 export interface OrderListParams {

@@ -12,7 +12,7 @@ import {
 import { PageHeader } from '@/components/layout/PageHeader'
 import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { useOrders } from '@/hooks/useOrders'
-import { formatCurrency, formatDate, formatOrderStatus } from '@/utils/formatters'
+import { formatCurrency, formatDate, formatDateTime, formatOrderStatus } from '@/utils/formatters'
 import { ORDER_STATUS } from '@/utils/constants'
 
 const STATUS_COLOR: Record<string, 'default' | 'success' | 'warning' | 'error' | 'info'> = {
@@ -41,6 +41,7 @@ export function CustomerOrders() {
               <TableRow>
                 <TableCell>Restaurant</TableCell>
                 <TableCell>Date</TableCell>
+                <TableCell>Arrival</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="right">Total</TableCell>
               </TableRow>
@@ -50,6 +51,7 @@ export function CustomerOrders() {
                 <TableRow key={order.id} hover>
                   <TableCell>{order.restaurantName}</TableCell>
                   <TableCell>{formatDate(order.createdAt)}</TableCell>
+                  <TableCell>{formatDateTime(order.expectedArrivalTime)}</TableCell>
                   <TableCell>
                     <Chip
                       label={formatOrderStatus(order.status)}

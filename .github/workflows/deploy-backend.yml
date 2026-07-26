@@ -1,0 +1,49 @@
+name: Deploy Backend
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Lambda dependencies
+        run: npm install --omit=dev
+        working-directory: backend/lambda
+
+      - name: Install boto3
+        run: pip install boto3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.VITE_AWS_REGION || 'us-east-1' }}
+
+      - name: Provision backend
+        id: provision
+        run: python backend/provision.py
+        env:
+          AWS_REGION: ${{ vars.VITE_AWS_REGION || 'us-east-1' }}
+          COGNITO_USER_POOL_ID: ${{ vars.VITE_COGNITO_USER_POOL_ID || secrets.VITE_COGNITO_USER_POOL_ID }}
+          COGNITO_CLIENT_ID: ${{ vars.VITE_COGNITO_CLIENT_ID || secrets.VITE_COGNITO_CLIENT_ID }}
+          CORS_ORIGINS: https://readytoeat.oppertunitypool.com,https://www.readytoeat.oppertunitypool.com,http://localhost:5173

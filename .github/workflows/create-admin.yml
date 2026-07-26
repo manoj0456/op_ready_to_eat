@@ -1,0 +1,54 @@
+name: Create Admin
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: Admin email
+        required: true
+        default: kasam.manoj456@gmail.com
+      name:
+        description: Admin display name
+        required: true
+        default: Manoj Kasam
+      password:
+        description: Admin password (Cognito policy applies - upper/lower/number/symbol, 8+ chars)
+        required: true
+        default: ReadyToEat@Admin1
+
+permissions:
+  contents: read
+
+jobs:
+  create-admin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install boto3
+        run: pip install boto3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.VITE_AWS_REGION || 'us-east-1' }}
+
+      - name: Create admin user
+        run: python backend/create_admin.py
+        env:
+          AWS_REGION: ${{ vars.VITE_AWS_REGION || 'us-east-1' }}
+          COGNITO_USER_POOL_ID: ${{ vars.VITE_COGNITO_USER_POOL_ID || secrets.VITE_COGNITO_USER_POOL_ID }}
+          TABLE_USERS: ReadyToEat-Users
+          ADMIN_EMAIL: ${{ inputs.email }}
+          ADMIN_NAME: ${{ inputs.name }}
+          ADMIN_PASSWORD: ${{ inputs.password }}

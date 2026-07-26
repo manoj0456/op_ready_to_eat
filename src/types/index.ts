@@ -105,6 +105,9 @@ export interface Order {
   tax: number
   total: number
   deliveryAddress: Address
+  expectedArrivalTime: string
+  guestCount: number
+  specialInstructions?: string
   createdAt: string
   updatedAt: string
 }

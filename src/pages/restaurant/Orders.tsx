@@ -16,7 +16,7 @@ import { LoadingSpinner } from '@/components/common/LoadingSpinner'
 import { useAuth } from '@/hooks/useAuth'
 import { useRestaurantOrders, useUpdateOrderStatus } from '@/hooks/useOrders'
 import { useSnackbar } from '@/hooks/useSnackbar'
-import { formatCurrency, formatDate, formatOrderStatus } from '@/utils/formatters'
+import { formatCurrency, formatDate, formatDateTime, formatOrderStatus } from '@/utils/formatters'
 import { ORDER_STATUS, type OrderStatus } from '@/utils/constants'
 
 const STATUS_OPTIONS = Object.values(ORDER_STATUS)
@@ -50,6 +50,8 @@ export function RestaurantOrders() {
               <TableRow>
                 <TableCell>Order</TableCell>
                 <TableCell>Date</TableCell>
+                <TableCell>Arrival</TableCell>
+                <TableCell align="right">Guests</TableCell>
                 <TableCell align="right">Total</TableCell>
                 <TableCell>Status</TableCell>
               </TableRow>
@@ -59,6 +61,8 @@ export function RestaurantOrders() {
                 <TableRow key={order.id} hover>
                   <TableCell>{order.id}</TableCell>
                   <TableCell>{formatDate(order.createdAt)}</TableCell>
+                  <TableCell>{formatDateTime(order.expectedArrivalTime)}</TableCell>
+                  <TableCell align="right">{order.guestCount}</TableCell>
                   <TableCell align="right">{formatCurrency(order.total)}</TableCell>
                   <TableCell>
                     {order.status === ORDER_STATUS.CANCELLED || order.status === ORDER_STATUS.DELIVERED ? (

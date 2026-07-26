@@ -4,6 +4,7 @@ import * as cognitoService from '@/services/cognitoService'
 import { decodeJwt } from '@/utils/jwt'
 import { STORAGE_KEYS } from '@/utils/constants'
 import { setUnauthorizedListener } from '@/api/client'
+import { authApi } from '@/api/auth'
 import type { Role } from '@/constants/roles'
 import type { User } from '@/types'
 
@@ -101,6 +102,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         name: attributes.name,
         'custom:role': attributes.role,
+      })
+      await authApi.signup({
+        name: attributes.name,
+        email,
+        password,
+        role: attributes.role as 'CUSTOMER' | 'RESTAURANT',
       })
     },
     [],
