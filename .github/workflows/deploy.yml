@@ -14,12 +14,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
+      - name: Setup Node 24
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - name: Install dependencies
@@ -46,7 +46,7 @@ jobs:
           aws-region: ${{ vars.VITE_AWS_REGION || 'us-east-1' }}
 
       - name: Sync build to S3
-        run: aws s3 sync dist/ "s3://${{ secrets.S3_BUCKET }}" --delete
+        run: aws s3 sync dist/ "s3://${{ secrets.S3_BUCKET_NAME }}" --delete
 
       - name: Invalidate CloudFront cache
         run: |
