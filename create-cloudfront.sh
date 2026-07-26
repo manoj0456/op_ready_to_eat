@@ -30,6 +30,20 @@ aws sts get-caller-identity >/dev/null || {
   exit 1
 }
 
+echo "Checking whether bucket '$BUCKET_NAME' exists..."
+if aws s3api head-bucket --bucket "$BUCKET_NAME" 2>/dev/null; then
+  echo "Bucket exists."
+else
+  echo "Bucket not found. Creating '$BUCKET_NAME' in $AWS_REGION..."
+  if [ "$AWS_REGION" = "us-east-1" ]; then
+    aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$AWS_REGION"
+  else
+    aws s3api create-bucket --bucket "$BUCKET_NAME" --region "$AWS_REGION" \
+      --create-bucket-configuration LocationConstraint="$AWS_REGION"
+  fi
+  echo "Bucket created."
+fi
+
 echo "Checking whether S3 static website hosting is enabled on '$BUCKET_NAME'..."
 if aws s3api get-bucket-website --bucket "$BUCKET_NAME" >/dev/null 2>&1; then
   USE_WEBSITE_ENDPOINT=true
