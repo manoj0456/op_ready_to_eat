@@ -45,11 +45,122 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ vars.VITE_AWS_REGION || 'us-east-1' }}
 
+      - name: Ensure S3 bucket exists
+        run: |
+          BUCKET="${{ secrets.S3_BUCKET_NAME }}"
+          REGION="${{ vars.VITE_AWS_REGION }}"
+          REGION="${REGION:-us-east-1}"
+          if aws s3api head-bucket --bucket "$BUCKET" 2>/dev/null; then
+            echo "Bucket $BUCKET already exists."
+          else
+            echo "Bucket $BUCKET not found. Creating in $REGION..."
+            if [ "$REGION" = "us-east-1" ]; then
+              aws s3api create-bucket --bucket "$BUCKET" --region "$REGION"
+            else
+              aws s3api create-bucket --bucket "$BUCKET" --region "$REGION" \
+                --create-bucket-configuration LocationConstraint="$REGION"
+            fi
+          fi
+
       - name: Sync build to S3
         run: aws s3 sync dist/ "s3://${{ secrets.S3_BUCKET_NAME }}" --delete
+
+      - name: Ensure CloudFront distribution exists
+        id: cloudfront
+        run: |
+          BUCKET="${{ secrets.S3_BUCKET_NAME }}"
+          REGION="${{ vars.VITE_AWS_REGION }}"
+          REGION="${REGION:-us-east-1}"
+          ORIGIN_DOMAIN="${BUCKET}.s3.${REGION}.amazonaws.com"
+          DIST_ID="${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}"
+
+          if [ -n "$DIST_ID" ]; then
+            echo "Using distribution from CLOUDFRONT_DISTRIBUTION_ID secret: $DIST_ID"
+          else
+            echo "CLOUDFRONT_DISTRIBUTION_ID secret not set. Looking for an existing distribution for $ORIGIN_DOMAIN..."
+            DIST_ID=$(aws cloudfront list-distributions \
+              --query "DistributionList.Items[?Origins.Items[?DomainName=='${ORIGIN_DOMAIN}']].Id | [0]" \
+              --output text)
+
+            if [ "$DIST_ID" = "None" ] || [ -z "$DIST_ID" ]; then
+              echo "No existing distribution found. Creating one..."
+              OAC_ID=$(aws cloudfront create-origin-access-control \
+                --origin-access-control-config "{\"Name\":\"${BUCKET}-oac\",\"OriginAccessControlOriginType\":\"s3\",\"SigningBehavior\":\"always\",\"SigningProtocol\":\"sigv4\"}" \
+                --query 'OriginAccessControl.Id' --output text)
+
+              ORIGIN_ID="S3-${BUCKET}"
+              CALLER_REFERENCE="readytoeat-$(date +%s)"
+
+              cat > /tmp/dist-config.json <<EOF
+          {
+            "CallerReference": "$CALLER_REFERENCE",
+            "Comment": "readytoeat.oppertunitypool.com frontend",
+            "DefaultRootObject": "index.html",
+            "Enabled": true,
+            "PriceClass": "PriceClass_100",
+            "Origins": {
+              "Quantity": 1,
+              "Items": [
+                {
+                  "Id": "$ORIGIN_ID",
+                  "DomainName": "$ORIGIN_DOMAIN",
+                  "OriginAccessControlId": "$OAC_ID",
+                  "S3OriginConfig": { "OriginAccessIdentity": "" }
+                }
+              ]
+            },
+            "DefaultCacheBehavior": {
+              "TargetOriginId": "$ORIGIN_ID",
+              "ViewerProtocolPolicy": "redirect-to-https",
+              "AllowedMethods": {
+                "Quantity": 2,
+                "Items": ["GET", "HEAD"],
+                "CachedMethods": { "Quantity": 2, "Items": ["GET", "HEAD"] }
+              },
+              "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+              "Compress": true
+            },
+            "CustomErrorResponses": {
+              "Quantity": 2,
+              "Items": [
+                { "ErrorCode": 404, "ResponsePagePath": "/index.html", "ResponseCode": "200", "ErrorCachingMinTTL": 10 },
+                { "ErrorCode": 403, "ResponsePagePath": "/index.html", "ResponseCode": "200", "ErrorCachingMinTTL": 10 }
+              ]
+            }
+          }
+          EOF
+
+              RESULT=$(aws cloudfront create-distribution --distribution-config file:///tmp/dist-config.json --output json)
+              DIST_ID=$(echo "$RESULT" | grep -m1 '"Id"' | sed -E 's/.*"Id": *"([^"]+)".*/\1/')
+              DIST_ARN=$(echo "$RESULT" | grep -m1 '"ARN"' | sed -E 's/.*"ARN": *"([^"]+)".*/\1/')
+
+              cat > /tmp/bucket-policy.json <<EOF
+          {
+            "Version": "2012-10-17",
+            "Statement": [
+              {
+                "Sid": "AllowCloudFrontServicePrincipalReadOnly",
+                "Effect": "Allow",
+                "Principal": { "Service": "cloudfront.amazonaws.com" },
+                "Action": "s3:GetObject",
+                "Resource": "arn:aws:s3:::${BUCKET}/*",
+                "Condition": { "StringEquals": { "AWS:SourceArn": "$DIST_ARN" } }
+              }
+            ]
+          }
+          EOF
+              aws s3api put-bucket-policy --bucket "$BUCKET" --policy file:///tmp/bucket-policy.json
+
+              echo "::warning::Created new CloudFront distribution $DIST_ID. Add it as the CLOUDFRONT_DISTRIBUTION_ID GitHub secret so future deploys reuse it instead of searching for it every time."
+            else
+              echo "Found existing distribution: $DIST_ID"
+            fi
+          fi
+
+          echo "dist_id=$DIST_ID" >> "$GITHUB_OUTPUT"
 
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id "${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}" \
+            --distribution-id "${{ steps.cloudfront.outputs.dist_id }}" \
             --paths "/*"
