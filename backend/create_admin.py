@@ -28,16 +28,47 @@ PASSWORD = os.environ["ADMIN_PASSWORD"]
 cognito = boto3.client("cognito-idp", region_name=REGION)
 ddb = boto3.client("dynamodb", region_name=REGION)
 
+CANDIDATE_REGIONS = [
+    "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+    "eu-west-1", "eu-central-1", "ap-south-1", "ap-southeast-1", "ap-southeast-2",
+]
+
 
 def log(msg):
     print(f"[create-admin] {msg}", flush=True)
 
 
+def find_pool_region():
+    log(f"Pool not found in {REGION} - checking other regions (not printing the pool id)...")
+    for region in CANDIDATE_REGIONS:
+        if region == REGION:
+            continue
+        try:
+            boto3.client("cognito-idp", region_name=region).describe_user_pool(UserPoolId=USER_POOL_ID)
+            log(f"Found the pool in region: {region}")
+            return region
+        except ClientError:
+            continue
+    return None
+
+
 def ensure_cognito_user():
+    global cognito
     try:
         user = cognito.admin_get_user(UserPoolId=USER_POOL_ID, Username=EMAIL)
         log(f"Cognito user {EMAIL} already exists")
     except ClientError as e:
+        if e.response["Error"]["Code"] == "ResourceNotFoundException":
+            found_region = find_pool_region()
+            if not found_region:
+                raise RuntimeError(
+                    "Could not find the Cognito user pool in any candidate region. "
+                    "Check COGNITO_USER_POOL_ID and VITE_AWS_REGION."
+                )
+            raise RuntimeError(
+                f"AWS_REGION is set to '{REGION}' but the user pool actually lives in "
+                f"'{found_region}'. Fix the VITE_AWS_REGION secret/variable to '{found_region}'."
+            )
         if e.response["Error"]["Code"] != "UserNotFoundException":
             raise
         log(f"Creating Cognito user {EMAIL}...")
