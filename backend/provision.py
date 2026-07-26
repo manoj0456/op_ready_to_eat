@@ -25,9 +25,15 @@ from pathlib import Path
 import boto3
 from botocore.exceptions import ClientError
 
+from cognito_schema import ensure_custom_role_attribute
+
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 COGNITO_USER_POOL_ID = os.environ["COGNITO_USER_POOL_ID"]
 COGNITO_CLIENT_ID = os.environ["COGNITO_CLIENT_ID"]
+# The pool can live in a different region than the rest of the stack - derive
+# it from the pool id prefix (e.g. "us-east-2_XXXX") rather than assuming it
+# matches AWS_REGION.
+COGNITO_REGION = COGNITO_USER_POOL_ID.split("_")[0]
 CORS_ORIGINS = os.environ.get(
     "CORS_ORIGINS",
     "https://readytoeat.oppertunitypool.com,https://www.readytoeat.oppertunitypool.com",
@@ -47,6 +53,7 @@ ddb = boto3.client("dynamodb", region_name=REGION)
 iam = boto3.client("iam", region_name=REGION)
 lam = boto3.client("lambda", region_name=REGION)
 apigw = boto3.client("apigatewayv2", region_name=REGION)
+cognito = boto3.client("cognito-idp", region_name=COGNITO_REGION)
 
 TABLE_DEFS = {
     "USERS": {
@@ -310,7 +317,9 @@ def ensure_api(function_arn):
 
 
 def main():
-    log(f"Region: {REGION}, Account: {ACCOUNT_ID}")
+    log(f"Region: {REGION}, Account: {ACCOUNT_ID}, Cognito region: {COGNITO_REGION}")
+
+    ensure_custom_role_attribute(cognito, COGNITO_USER_POOL_ID, log)
 
     table_names = {}
     for key, table_def in TABLE_DEFS.items():

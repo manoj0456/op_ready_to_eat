@@ -18,6 +18,8 @@ from datetime import datetime, timezone
 import boto3
 from botocore.exceptions import ClientError
 
+from cognito_schema import ensure_custom_role_attribute
+
 REGION = os.environ.get("AWS_REGION", "us-east-1")
 USER_POOL_ID = os.environ["COGNITO_USER_POOL_ID"]
 # The pool can live in a different region than the rest of the stack - derive
@@ -38,6 +40,7 @@ def log(msg):
 
 
 def ensure_cognito_user():
+    ensure_custom_role_attribute(cognito, USER_POOL_ID, log)
     try:
         user = cognito.admin_get_user(UserPoolId=USER_POOL_ID, Username=EMAIL)
         log(f"Cognito user {EMAIL} already exists")
