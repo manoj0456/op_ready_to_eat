@@ -1,5 +1,18 @@
 name: Deploy
 
+# REQUIRED SECRETS — repo Settings → Secrets and variables → Actions:
+#   AWS_ACCESS_KEY_ID          (IAM access key)
+#   AWS_SECRET_ACCESS_KEY      (IAM secret key)
+#   S3_BUCKET_NAME             (target S3 bucket)
+#   CLOUDFRONT_DISTRIBUTION_ID (optional but recommended — avoids re-lookup on every deploy)
+# Without AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY the workflow will fail
+# with "Could not load credentials from any providers".
+#
+# REQUIRED VARIABLES — repo Settings → Variables:
+#   VITE_AWS_REGION, VITE_API_BASE_URL, VITE_COGNITO_USER_POOL_ID,
+#   VITE_COGNITO_CLIENT_ID, VITE_CLOUDFRONT_URL
+
+
 on:
   push:
     branches:
@@ -14,10 +27,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Node 24
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
