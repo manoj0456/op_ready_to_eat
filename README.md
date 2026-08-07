@@ -1,6 +1,7 @@
 # ReadyToEat
 
 App helps restaurants and customers to prebook order to eat before reaching restaurant that saves time and helps restaurants to get more time to serve.
+\
 
 ## Phase 1 — Frontend foundation
 
